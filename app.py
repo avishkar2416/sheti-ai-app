@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# २. प्रीमियम आणि मॉडर्न CSS स्टाईलिंग
+# २. प्रीमियम स्टाईलिंग
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -19,13 +19,11 @@ st.markdown("""
         font-family: 'Poppins', sans-serif;
     }
     
-    /* मुख्य बॅकग्राउंड */
     .stApp {
         background: linear-gradient(135deg, #0d1b1e 0%, #15291e 50%, #0d1b1e 100%);
         color: #e0e6ed;
     }
     
-    /* हिरवा हेडर बॅनर */
     .hero-container {
         background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 50%, #43a047 100%);
         border-radius: 20px;
@@ -50,7 +48,6 @@ st.markdown("""
         font-weight: 300;
     }
     
-    /* मॉडर्न ग्लास कार्ड */
     .glass-card {
         background: rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(12px);
@@ -62,7 +59,6 @@ st.markdown("""
         box-shadow: 0 8px 24px rgba(0,0,0,0.2);
     }
     
-    /* टॅब डिझाईन */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         background: rgba(255, 255, 255, 0.04);
@@ -85,7 +81,6 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(46, 125, 50, 0.4);
     }
     
-    /* बटन्स स्टाईल */
     .stButton>button {
         background: linear-gradient(135deg, #00c853 0%, #1b5e20 100%);
         color: #ffffff;
@@ -103,7 +98,6 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(0, 200, 83, 0.5);
     }
     
-    /* निकाल बॉक्स */
     .result-box {
         background: rgba(30, 41, 59, 0.85);
         border: 1px solid rgba(46, 125, 50, 0.4);
@@ -124,9 +118,24 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# API Configuration
-API_KEY = "AQ.Ab8RN6JS0wf7PcFGxO3EUgVeYyvYTrU3orI9mWbw3qZfaunlrg"
-MODEL_NAME = "gemini-2.5-flash"
+# API आणि मॉडेल कॉन्फिगरेशन
+API_KEY = st.secrets.get("GEMINI_API_KEY", "AQ.Ab8RN6JS0wf7PcFGxO3EUgVeYyvYTrU3orI9mWbw3qZfaunlrg")
+
+# AI कॉलिंग फंक्शन (ऑटोमॅटिक मॉडेल मॅनेजमेंट)
+def call_gemini(contents):
+    client = genai.Client(api_key=API_KEY)
+    supported_models = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"]
+    
+    for model in supported_models:
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=contents
+            )
+            return response.text
+        except Exception:
+            continue
+    raise Exception("मॉडेल कनेक्ट होऊ शकले नाही. कृपया API Key तपासा.")
 
 # ४. मुख्य टॅब्स
 tab1, tab2, tab3 = st.tabs(["📸 पीक रोग निदान", "💬 AI कृषी सल्लागार", "⚖️ खत गणक"])
@@ -149,7 +158,6 @@ with tab1:
             if st.button("✨ रोगाचे अचूक निदान करा", key="diagnose_btn"):
                 with st.spinner("🤖 AI पिकाच्या रोगाचे सखोल विश्लेषण करत आहे..."):
                     try:
-                        client = genai.Client(api_key=API_KEY)
                         prompt = """
                         तुम्ही एक अनुभवी कृषी शास्त्रज्ञ आहात. फोटोचे विश्लेषण करून खालील स्वरूपात स्वच्छ मराठीत माहिती द्या:
                         ### 🌾 १. पिकाचे व रोगाचे नाव
@@ -157,11 +165,8 @@ with tab1:
                         ### 💊 ३. जैविक आणि रासायनिक उपाय (औषधांचे नाव आणि फवारणीचे प्रमाण)
                         ### 🛡️ ४. पुढील प्रतिबंधात्मक काळजी
                         """
-                        response = client.models.generate_content(
-                            model=MODEL_NAME,
-                            contents=[image, prompt]
-                        )
-                        st.markdown(f'<div class="result-box">{response.text}</div>', unsafe_allow_html=True)
+                        result = call_gemini([image, prompt])
+                        st.markdown(f'<div class="result-box">{result}</div>', unsafe_allow_html=True)
                     except Exception as e:
                         st.error(f"एरर आला: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -172,7 +177,7 @@ with tab2:
     st.write("### 💬 शेतीविषयक काहीही विचारा")
     user_query = st.text_area(
         "", 
-        placeholder="उदा. सोयाबीनवर शेंगा पोखरणारी अळी आल्यास कोणती फवारणी करावी? किंवा कांदा पिकाचे वजन वाढवण्यासाठी काय करावे?",
+        placeholder="उदा. सोयाबीनवर शेंगा पोखरणारी अळी आल्यास कोणती फवारणी करावी?",
         height=100
     )
 
@@ -182,13 +187,9 @@ with tab2:
         else:
             with st.spinner("🔍 कृषी माहिती शोधत आहे..."):
                 try:
-                    client = genai.Client(api_key=API_KEY)
                     sys_prompt = "तुम्ही महाराष्ट्रातील शेतकऱ्यांना मार्गदर्शन करणारे तज्ज्ञ कृषी शास्त्रज्ञ आहात. उत्तर नेहमी मुद्देसूद, अत्यंत सोप्या आणि शुद्ध मराठीत द्या."
-                    response = client.models.generate_content(
-                        model=MODEL_NAME,
-                        contents=f"{sys_prompt}\n\nशेतकऱ्याचा प्रश्न: {user_query}"
-                    )
-                    st.markdown(f'<div class="result-box">{response.text}</div>', unsafe_allow_html=True)
+                    result = call_gemini(f"{sys_prompt}\n\nशेतकऱ्याचा प्रश्न: {user_query}")
+                    st.markdown(f'<div class="result-box">{result}</div>', unsafe_allow_html=True)
                 except Exception as e:
                     st.error(f"एरर आला: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -215,3 +216,4 @@ with tab3:
         else:
             st.info(f"• **{crop} मूलभूत डोस:** 10:26:26 खत {area * 50} किलो प्रति एकर वापरावे.")
     st.markdown('</div>', unsafe_allow_html=True)
+
