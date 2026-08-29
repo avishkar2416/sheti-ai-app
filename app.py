@@ -1,14 +1,15 @@
 import streamlit as st
-from google import genai
+import google.generativeai as genai
 from PIL import Image
 
+# १. पेज कॉन्फिगरेशन
 st.set_page_config(
     page_title="स्मार्ट कृषी AI मित्र",
     page_icon="🌿",
     layout="wide"
 )
 
-# मॉडर्न स्टाईल
+# २. प्रीमियम स्टाईल
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -44,27 +45,20 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# तुमची API Key आणि मॉडेल
+# तुमची API Key कॉन्फिगरेशन
 API_KEY = "AQ.Ab8RN6L7fDObKeEHsrh31oDazDR2ZTfP5uG2KgNwG7JheupVNA"
+genai.configure(api_key=API_KEY)
 
-# 404 एरर टाळण्यासाठी ऑटोमॅटिक चालू मॉडेल शोधणारे फंक्शन
-def get_ai_response(client, contents):
-    models_to_try = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro"
-    ]
-    for model_name in models_to_try:
+# AI मॉडेल सेटअप
+def analyze_with_gemini(contents):
+    for m_name in ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"]:
         try:
-            res = client.models.generate_content(
-                model=model_name,
-                contents=contents
-            )
-            return res.text
+            model = genai.GenerativeModel(m_name)
+            response = model.generate_content(contents)
+            return response.text
         except Exception:
             continue
-    raise Exception("मॉडेल लोड होऊ शकले नाही.")
+    raise Exception("मॉडेलशी संपर्क होऊ शकला नाही. कृपया API Key तपासा.")
 
 tab1, tab2, tab3 = st.tabs(["📸 पीक रोग निदान", "💬 AI कृषी सल्लागार", "⚖️ खत गणक"])
 
@@ -81,16 +75,15 @@ with tab1:
         if st.button("✨ रोगाचे अचूक निदान करा", key="diagnose_btn"):
             with st.spinner("🤖 AI पिकाच्या रोगाचे सखोल विश्लेषण करत आहे..."):
                 try:
-                    client = genai.Client(api_key=API_KEY)
                     prompt = """
-                    तुम्ही एक अनुभवी कृषी शास्त्रज्ञ आहात. फोटोचे विश्लेषण करून खालील स्वरूपात स्वच्छ मराठीत माहिती द्या:
-                    1. पिकाचे व रोगाचे नाव
-                    2. रोगाची मुख्य लक्षणे व कारणे
-                    3. जैविक आणि रासायनिक उपाय (औषधांचे नाव आणि फवारणीचे प्रमाण)
-                    4. पुढील प्रतिबंधात्मक काळजी
+                    तुम्ही एक अनुभवी कृषी शास्त्रज्ञ आहात. दिलेल्या पिकाच्या फोटोचे विश्लेषण करून खालील मुद्द्यांमध्ये सोप्या व स्पष्ट मराठीत उत्तर द्या:
+                    1. पिकाचे व रोगाचे नाव (Crop & Disease Name)
+                    2. मुख्य लक्षणे आणि कारणे (Symptoms)
+                    3. रासायनिक व सेंद्रिय उपाय (औषध, खताचे नाव व फवारणीचे प्रमाण)
+                    4. पुढील काळजी व प्रतिबंधात्मक उपाय
                     """
-                    result_text = get_ai_response(client, [image, prompt])
-                    st.markdown(f'<div class="result-box">{result_text}</div>', unsafe_allow_html=True)
+                    result = analyze_with_gemini([prompt, image])
+                    st.markdown(f'<div class="result-box">{result}</div>', unsafe_allow_html=True)
                 except Exception as e:
                     st.error(f"एरर आला: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -107,10 +100,9 @@ with tab2:
         else:
             with st.spinner("🔍 माहिती शोधत आहे..."):
                 try:
-                    client = genai.Client(api_key=API_KEY)
-                    sys_prompt = "तुम्ही तज्ज्ञ कृषी अधिकारी आहात. उत्तर शुद्ध व सोप्या मराठीत द्या."
-                    result_text = get_ai_response(client, f"{sys_prompt}\n\nप्रश्न: {user_query}")
-                    st.markdown(f'<div class="result-box">{result_text}</div>', unsafe_allow_html=True)
+                    sys_prompt = "तुम्ही तज्ज्ञ कृषी अधिकारी आहात. महाराष्ट्रातील शेतकऱ्यांसाठी सोप्या आणि शुद्ध मराठीत मार्गदर्शन करा."
+                    result = analyze_with_gemini(f"{sys_prompt}\n\nप्रश्न: {user_query}")
+                    st.markdown(f'<div class="result-box">{result}</div>', unsafe_allow_html=True)
                 except Exception as e:
                     st.error(f"एरर आला: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -132,3 +124,4 @@ with tab3:
         else:
             st.info(f"• **{crop} डोस:** 10:26:26 खत {area * 50} किलो प्रति एकर.")
     st.markdown('</div>', unsafe_allow_html=True)
+
