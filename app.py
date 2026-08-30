@@ -1,6 +1,8 @@
 import streamlit as st
 from google import genai
 from PIL import Image
+import requests
+import pandas as pd
 
 # १. पेज कॉन्फिगरेशन
 st.set_page_config(
@@ -9,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# २. आधुनिक व आकर्षक स्टाईल
+# २. प्रीमियम स्टाईलिंग
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -51,10 +53,6 @@ st.markdown("""
         background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(46, 125, 50, 0.5);
         border-radius: 14px; padding: 18px; margin-top: 15px; color: #f1f5f9; line-height: 1.7;
     }
-    .mandi-card {
-        background: rgba(46, 125, 50, 0.15); border: 1px solid rgba(76, 175, 80, 0.3);
-        border-radius: 12px; padding: 14px; text-align: center; margin-bottom: 10px;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -62,7 +60,7 @@ st.markdown("""
 st.markdown("""
     <div class="hero-container">
         <h1 class="hero-title">🌾 स्मार्ट शेतकरी AI महा-पोर्टल</h1>
-        <p class="hero-subtitle">रोग निदान • फवारणी खर्च • बाजारभाव अंदाज • खत व हवामान सल्ला</p>
+        <p class="hero-subtitle">रोग निदान • थेट जिल्हावार APMC बाजारभाव • खत व हवामान सल्ला</p>
     </div>
 """, unsafe_allow_html=True)
 
@@ -86,9 +84,9 @@ def generate_ai_response(client, contents):
 # ५ मुख्य टॅब्स
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📸 पीक डॉक्टर (रोग निदान)", 
+    "📈 थेट जिल्हावार APMC बाजारभाव",
     "💬 AI शेती सल्लागार", 
     "⚖️ खत व फवारणी खर्च", 
-    "📈 बाजारभाव अंदाज", 
     "🌦️ फवारणी हवामान अलर्ट"
 ])
 
@@ -123,8 +121,79 @@ with tab1:
                         st.error(f"एरर आला: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ----------------- TAB 2: AI शेती सल्लागार -----------------
-with tab2:
+# ----------------- TAB 2: थेट जिल्हावार APMC बाजारभाव -----------------
+with tab4 if False else tab2:
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.write("### 🏛️ महाराष्ट्र कृषी उत्पन्न बाजार समिती (APMC) थेट चालू दर")
+    st.caption("स्रोत: भारत सरकार कृषी व शेतकरी कल्याण मंत्रालय (Agmarknet Live API)")
+    
+    # महाराष्ट्रातील सर्व ३६ जिल्हे
+    mh_districts = [
+        "सर्व जिल्हे", "Ahmednagar", "Akola", "Amravati", "Beed", "Bhandara", "Buldhana", 
+        "Chandrapur", "Chhatrapati Sambhajinagar", "Dhule", "Gadchiroli", "Gondia", 
+        "Hingoli", "Jalgaon", "Jalna", "Kolhapur", "Latur", "Nagpur", "Nanded", 
+        "Nandurbar", "Nashik", "Dharashiv", "Palghar", "Parbhani", "Pune", 
+        "Raigad", "Ratnagiri", "Sangli", "Satara", "Sindhudurg", "Solapur", 
+        "Thane", "Wardha", "Washim", "Yavatmal"
+    ]
+    
+    # प्रमुख पिके
+    commodity_list = [
+        "Soyabean", "Cotton", "Onion", "Gram(Chana)", "Arhar (Tur/Red Gram)", 
+        "Wheat", "Maize", "Paddy(Dhan)", "Tomato", "Potato", "Green Chilli", "Ginger"
+    ]
+    
+    c_m1, c_m2 = st.columns(2)
+    with c_m1:
+        selected_district = st.selectbox("📍 तुमचा जिल्हा निवडा:", mh_districts)
+    with c_m2:
+        selected_commodity = st.selectbox("🌱 पीक/शेतमाल निवडा:", commodity_list)
+        
+    if st.button("🔍 थेट चालू बाजारभाव शोधा", key="mandi_fetch_btn"):
+        with st.spinner("कृषी विभागाच्या सर्व्हरवरून थेट चालू बाजारभाव लोड करत आहे..."):
+            try:
+                # Government Agmarknet API Endpoint
+                api_url = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+                params = {
+                    "api-key": "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b",
+                    "format": "json",
+                    "offset": "0",
+                    "limit": "100",
+                    "filters[state]": "Maharashtra",
+                    "filters[commodity]": selected_commodity
+                }
+                
+                if selected_district != "सर्व जिल्हे":
+                    params["filters[district]"] = selected_district
+                    
+                res = requests.get(api_url, params=params, timeout=12)
+                data = res.json()
+                
+                if "records" in data and len(data["records"]) > 0:
+                    records = data["records"]
+                    formatted_data = []
+                    for r in records:
+                        formatted_data.append({
+                            "तारीख": r.get("arrival_date", "-"),
+                            "जिल्हा": r.get("district", "-"),
+                            "बाजार समिती (APMC)": r.get("market", "-"),
+                            "शेतमाल / जात": f"{r.get('commodity', '')} ({r.get('variety', '-')})",
+                            "किमान भाव (₹/क्विंटल)": f"₹{r.get('min_price', '-')}",
+                            "कमाल भाव (₹/क्विंटल)": f"₹{r.get('max_price', '-')}",
+                            "सरासरी भाव (₹/क्विंटल)": f"₹{r.get('modal_price', '-')}"
+                        })
+                    
+                    df = pd.DataFrame(formatted_data)
+                    st.success(f"✅ {selected_district} मधील {selected_commodity} चे चालू बाजारभाव:")
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+                else:
+                    st.warning(f"⚠️ {selected_district} बाजार समितीत आज {selected_commodity} ची आवक नोंद झालेली नाही किंवा सौदे अद्याप सुरू आहेत.")
+            except Exception as e:
+                st.error("सर्व्हरवरून थेट डेटा आणण्यात अडचण आली. कृपया काही वेळाने पुन्हा प्रयत्न करा.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ----------------- TAB 3: AI शेती सल्लागार -----------------
+with tab3:
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.write("### 💬 शेतीतील कोणताही प्रश्न मराठीत विचारा")
     user_query = st.text_area("", placeholder="उदा. सोयाबीन ४० दिवसांचे आहे, फुलगळ थांबवण्यासाठी आणि शेंगांची संख्या वाढवण्यासाठी कोणती फवारणी करू?")
@@ -145,8 +214,8 @@ with tab2:
                     st.error(f"एरर आला: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ----------------- TAB 3: खत व फवारणी खर्च -----------------
-with tab3:
+# ----------------- TAB 4: खत व फवारणी खर्च -----------------
+with tab4:
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     st.write("### ⚖️ पिकानुसार एकरी खत व अंदाजे खर्च नियोजन")
     c1, c2 = st.columns(2)
@@ -180,47 +249,6 @@ with tab3:
             """)
         else:
             st.info(f"• **{crop} मूलभूत नियोजन:** 10:26:26 खत {int(area * 50)} किलो प्रति एकर वापरावे. अंदाजे खर्च: ₹२,२०० प्रति एकर.")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ----------------- TAB 4: बाजारभाव अंदाज -----------------
-with tab4:
-    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.write("### 📈 प्रमुख कृषी उत्पन्न बाजार समिती (APMC) अंदाजे बाजारभाव")
-    
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        st.markdown("""
-        <div class="mandi-card">
-            <h4>🌱 सोयाबीन (Soybean)</h4>
-            <h2 style="color:#00c853; margin:5px 0;">₹४,५०० - ₹४,९५०</h2>
-            <p style="margin:0; font-size:0.85rem; color:#aaa;">क्विंटल मागे सरासरी दर (आवक स्थिर)</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="mandi-card">
-            <h4>🧅 कांदा (Onion)</h4>
-            <h2 style="color:#00c853; margin:5px 0;">₹१,८०० - ₹२,४००</h2>
-            <p style="margin:0; font-size:0.85rem; color:#aaa;">क्विंटल मागे सरासरी दर</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col_m2:
-        st.markdown("""
-        <div class="mandi-card">
-            <h4>⚪ कापूस (Cotton)</h4>
-            <h2 style="color:#00c853; margin:5px 0;">₹६,८०० - ₹७,४००</h2>
-            <p style="margin:0; font-size:0.85rem; color:#aaa;">मध्यम/लांब धागा (क्विंटल)</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="mandi-card">
-            <h4>🫘 तूर (Pigeon Pea)</h4>
-            <h2 style="color:#00c853; margin:5px 0;">₹९,५०० - ₹१०,२००</h2>
-            <p style="margin:0; font-size:0.85rem; color:#aaa;">क्विंटल मागे उच्चांकी दर</p>
-        </div>
-        """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------- TAB 5: फवारणी हवामान अलर्ट -----------------
