@@ -2,14 +2,14 @@ import streamlit as st
 from google import genai
 from PIL import Image
 
-# पेज कॉन्फिगरेशन
+# १. पेज कॉन्फिगरेशन
 st.set_page_config(
     page_title="स्मार्ट कृषी AI मित्र",
     page_icon="🌿",
     layout="wide"
 )
 
-# मॉडर्न स्टाईल
+# २. प्रीमियम स्टाईल
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
@@ -45,7 +45,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# Secrets मधून सुरक्षित API Key घेणे
+# Secrets मधून की लोड करणे
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
 tab1, tab2, tab3 = st.tabs(["📸 पीक रोग निदान", "💬 AI कृषी सल्लागार", "⚖️ खत गणक"])
@@ -62,7 +62,7 @@ with tab1:
         
         if st.button("✨ रोगाचे अचूक निदान करा", key="diagnose_btn"):
             if not api_key:
-                st.error("कृपया Streamlit Secrets मध्ये API Key जोडा.")
+                st.error("कृपया Streamlit Secrets मध्ये GEMINI_API_KEY जोडा.")
             else:
                 with st.spinner("🤖 AI पिकाच्या रोगाचे सखोल विश्लेषण करत आहे..."):
                     try:
@@ -91,7 +91,7 @@ with tab2:
 
     if st.button("🚀 तज्ज्ञ AI सल्ला मिळवा", key="ask_btn"):
         if not api_key:
-            st.error("कृपया Streamlit Secrets मध्ये API Key जोडा.")
+            st.error("कृपया Streamlit Secrets मध्ये GEMINI_API_KEY जोडा.")
         elif not user_query:
             st.warning("⚠️ कृपया आधी प्रश्न लिहा.")
         else:
