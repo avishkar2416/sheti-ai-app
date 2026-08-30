@@ -48,6 +48,20 @@ st.markdown("""
 # Secrets मधून की लोड करणे
 api_key = st.secrets.get("GEMINI_API_KEY", "")
 
+# 404 एरर टाळण्यासाठी ऑटोमॅटिक चालू मॉडेल शोधणारे फंक्शन
+def generate_ai_response(client, contents):
+    models = ["gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    for m in models:
+        try:
+            res = client.models.generate_content(
+                model=m,
+                contents=contents
+            )
+            return res.text
+        except Exception:
+            continue
+    raise Exception("कोणतेही मॉडेल प्रतिसाद देत नाही. कृपया API Key आणि कोटा तपासा.")
+
 tab1, tab2, tab3 = st.tabs(["📸 पीक रोग निदान", "💬 AI कृषी सल्लागार", "⚖️ खत गणक"])
 
 # ----------------- TAB 1: पीक रोग निदान -----------------
@@ -74,11 +88,8 @@ with tab1:
                         3. जैविक आणि रासायनिक उपाय (औषधांचे नाव आणि फवारणीचे प्रमाण)
                         4. पुढील प्रतिबंधात्मक काळजी
                         """
-                        response = client.models.generate_content(
-                            model="gemini-2.5-flash",
-                            contents=[image, prompt]
-                        )
-                        st.markdown(f'<div class="result-box">{response.text}</div>', unsafe_allow_html=True)
+                        result = generate_ai_response(client, [image, prompt])
+                        st.markdown(f'<div class="result-box">{result}</div>', unsafe_allow_html=True)
                     except Exception as e:
                         st.error(f"एरर आला: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -99,11 +110,8 @@ with tab2:
                 try:
                     client = genai.Client(api_key=api_key)
                     sys_prompt = "तुम्ही तज्ज्ञ कृषी अधिकारी आहात. उत्तर शुद्ध व सोप्या मराठीत द्या."
-                    response = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=f"{sys_prompt}\n\nप्रश्न: {user_query}"
-                    )
-                    st.markdown(f'<div class="result-box">{response.text}</div>', unsafe_allow_html=True)
+                    result = generate_ai_response(client, f"{sys_prompt}\n\nप्रश्न: {user_query}")
+                    st.markdown(f'<div class="result-box">{result}</div>', unsafe_allow_html=True)
                 except Exception as e:
                     st.error(f"एरर आला: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
