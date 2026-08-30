@@ -12,11 +12,14 @@ st.set_page_config(
     layout="wide"
 )
 
-# २. Google AdSense अधिकृत व्हेरिफिकेशन कोड (Header Injection)
+# २. Google AdSense अधिकृत व्हेरिफिकेशन कोड (Header & Meta Injection)
 components.html(
     """
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9560392276768824"
-         crossorigin="anonymous"></script>
+    <head>
+        <meta name="google-adsense-account" content="ca-pub-9560392276768824">
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9560392276768824"
+             crossorigin="anonymous"></script>
+    </head>
     """,
     height=0,
 )
